@@ -1,1 +1,41 @@
+name: Update TEFAS prices
+
+on:
+  schedule:
+    - cron: '0 19 * * 1-5'   # evening (UTC), after TEFAS publishes the day's prices
+    - cron: '0 6 * * 2-6'    # next morning, to catch funds that publish late
+  workflow_dispatch:          # lets you start it by hand from the Actions tab
+
+permissions:
+  contents: write             # needed so the job can save the CSV files
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install tefas-crawler pandas
+
+      - name: Fetch prices
+        run: |
+          # exit code 2 = some funds failed (fine); 1 = everything failed (job turns red)
+          python tefas_update.py --funds $(cat funds.txt) || [ $? -eq 2 ]
+
+      - name: Save results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tefas_latest.csv tefas_history.csv
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Update TEFAS prices"
+            git push
+          fi
 
