@@ -38,4 +38,3 @@ jobs:
             git commit -m "Update TEFAS prices"
             git push
           fi
-
